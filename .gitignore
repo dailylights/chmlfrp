@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+.env
+ip2region.xdb
+ip2region_v4.xdb
+temp/gh-artifacts/

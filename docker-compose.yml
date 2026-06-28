@@ -1,0 +1,147 @@
+# 雨云签到工具 Docker Compose 配置
+# 
+# 使用方法：
+# 1. 启动定时模式（推荐）：docker-compose up -d rainyun-schedule
+#    - 首次启动1分钟后执行一次签到
+#    - 然后每天早上8点自动执行
+#    - 程序持续运行，自动重启
+#    - 支持多账号签到
+# 
+# 2. 单次运行（测试用）：docker-compose run rainyun-once
+#    - 执行一次签到后退出
+# 
+# 3. 查看日志：docker logs rainyun-schedule -f
+# 4. 停止定时任务：docker-compose down
+#
+# 多账号配置示例：
+#   RAINYUN_USERNAME=user1@qq.com|user2@163.com|user3@gmail.com
+#   RAINYUN_PASSWORD=pass1|pass2|pass3
+
+services:
+  # 单次运行模式（测试用）
+  rainyun-once:
+    build: .
+    container_name: rainyun-once
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      # 雨云登录凭据 - 请在 .env 文件中配置
+      - RAINYUN_USERNAME=${RAINYUN_USERNAME}
+      - RAINYUN_PASSWORD=${RAINYUN_PASSWORD}
+      # Push Message
+      - PUSHPLUS_TOKEN=${PUSHPLUS_TOKEN}
+      # Push Message (WXPusher)
+      - WXPUSHER_APP_TOKEN=${WXPUSHER_APP_TOKEN}
+      - WXPUSHER_UIDS=${WXPUSHER_UIDS}
+      - WXPUSHER_TOPIC_IDS=${WXPUSHER_TOPIC_IDS}
+      # Push Message (DingTalk)
+      - DINGTALK_ACCESS_TOKEN=${DINGTALK_ACCESS_TOKEN}
+      - DINGTALK_SECRET=${DINGTALK_SECRET}
+      # Push Message (Email)
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_TO=${SMTP_TO}
+      # 运行模式配置
+      - RUN_MODE=once
+      # 可选配置
+      - DEBUG=${DEBUG:-false}
+      - MAX_DELAY=${MAX_DELAY:-5}
+      - TIMEOUT=${TIMEOUT:-15000}
+      # Python环境配置
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Shanghai
+      # 截图嵌入策略 (all / failed_only / none)
+      - SCREENSHOT_MODE=${SCREENSHOT_MODE:-failed_only}
+    volumes:
+      # 挂载临时目录（用于验证码图片）
+      - ./temp:/app/temp
+      - ./logs:/app/logs
+    # 内存限制
+    mem_limit: 512m
+    # CPU限制
+    cpus: '0.3'
+    # 安全配置
+    security_opt:
+      - seccomp:unconfined
+    profiles:
+      - once  # 单次运行
+
+  # 定时运行模式（推荐）- 首次启动1分钟后执行，然后每天8点执行
+  rainyun-schedule:
+    build: .
+    container_name: rainyun-schedule
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "7"
+    environment:
+      # 雨云登录凭据 - 请在 .env 文件中配置
+      - RAINYUN_USERNAME=${RAINYUN_USERNAME}
+      - RAINYUN_PASSWORD=${RAINYUN_PASSWORD}
+      # Push Message
+      - PUSHPLUS_TOKEN=${PUSHPLUS_TOKEN}
+      # Push Message (WXPusher)
+      - WXPUSHER_APP_TOKEN=${WXPUSHER_APP_TOKEN}
+      - WXPUSHER_UIDS=${WXPUSHER_UIDS}
+      - WXPUSHER_TOPIC_IDS=${WXPUSHER_TOPIC_IDS}
+      # Push Message (DingTalk)
+      - DINGTALK_ACCESS_TOKEN=${DINGTALK_ACCESS_TOKEN}
+      - DINGTALK_SECRET=${DINGTALK_SECRET}
+      # Push Message (Email)
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_TO=${SMTP_TO}
+      # 运行模式配置
+      - RUN_MODE=schedule
+      - SCHEDULE_TIME=${SCHEDULE_TIME:-08:00}
+      # 可选配置
+      - DEBUG=${DEBUG:-false}
+      - MAX_DELAY=${MAX_DELAY:-5}
+      - TIMEOUT=${TIMEOUT:-15000}
+      # Python环境配置
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Shanghai
+      # 截图嵌入策略 (all / failed_only / none)
+      - SCREENSHOT_MODE=${SCREENSHOT_MODE:-failed_only}
+    volumes:
+      # 挂载日志目录（用于日志轮转和持久化）
+      - ./logs:/app/logs
+      # 挂载临时目录（用于验证码图片）
+      - ./temp:/app/temp
+    # 内存限制
+    mem_limit: 1g
+    # CPU限制
+    cpus: '0.5'
+    # 安全配置
+    security_opt:
+      - seccomp:unconfined
+    # 网络模式
+    network_mode: bridge
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "ps", "aux", "|", "grep", "python"]
+      interval: 1h
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# 网络配置
+networks:
+  default:
+    driver: bridge
+
+# 卷配置
+volumes:
+  logs:
+    driver: local
+  temp:
+    driver: local
